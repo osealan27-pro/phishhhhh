@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VulnScan — Security Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #00ff88;
+    --accent2: #ff3366;
+    --accent3: #3388ff;
+    --warn: #ffaa00;
+    --text: #e8e8f0;
+    --muted: #6060808;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Header ── */
+  header {
+    padding: 48px 0 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    font-size: 20px;
+  }
+
+  .logo-text {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+
+  .logo-text span { color: var(--text); }
+
+  h1 {
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -1px;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+    position: relative;
+  }
+
+  .tagline {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  /* ── Disclaimer ── */
+  .disclaimer {
+    border: 1px solid #ff336622;
+    background: #ff336608;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #ff6688;
+    margin-bottom: 28px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .disclaimer b { color: var(--accent2); }
+
+  /* ── Scan Form ── */
+  .scan-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+
+  .form-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  input[type=text] {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  input[type=text]:focus {
+    border-color: var(--accent);
+  }
+
+  input[type=text]::placeholder { color: #444; }
+
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 28px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { background: #00ffaa; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  .form-note {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #555;
+    margin-top: 10px;
+  }
+
+  /* ── Progress ── */
+  #progress-section {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .progress-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .progress-pct {
+    font-family: var(--mono);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .progress-bar-bg {
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width .4s ease;
+    width: 0%;
+    box-shadow: 0 0 12px var(--accent);
+  }
+
+  .progress-steps {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .step-pill {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #444;
+    letter-spacing: .5px;
+    transition: all .3s;
+  }
+
+  .step-pill.active { border-color: var(--accent); color: var(--accent); }
+  .step-pill.done { border-color: #00ff8855; color: #00ff8888; background: #00ff880a; }
+
+  /* ── Results ── */
+  #results { display: none; }
+
+  .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .results-title {
+    font-size: 24px;
+    font-weight: 800;
+  }
+
+  .results-target {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+  }
+
+  .overall-risk {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .risk-badge {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .risk-critical { background: #ff003322; color: #ff3355; border: 1px solid #ff003355; }
+  .risk-high { background: #ff330022; color: #ff6633; border: 1px solid #ff330055; }
+  .risk-medium { background: #ffaa0022; color: #ffaa00; border: 1px solid #ffaa0055; }
+  .risk-low { background: #3388ff22; color: #3388ff; border: 1px solid #3388ff55; }
+  .risk-ok { background: #00ff8822; color: #00ff88; border: 1px solid #00ff8855; }
+
+  /* ── Section Cards ── */
+  .section-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .card-header:hover { background: #ffffff05; }
+
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .card-icon { font-size: 18px; }
+
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #555;
+  }
+
+  .chevron {
+    transition: transform .2s;
+    color: #555;
+    font-size: 18px;
+  }
+
+  .card-body { padding: 20px; }
+  .card-body.collapsed { display: none; }
+
+  /* ── Table ── */
+  .result-table { width: 100%; border-collapse: collapse; }
+
+  .result-table th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: #555;
+    padding: 0 0 12px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .result-table td {
+    padding: 10px 0;
+    font-size: 13px;
+    border-bottom: 1px solid #ffffff06;
+    vertical-align: top;
+  }
+
+  .result-table tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .badge-critical { background: #ff003318; color: #ff2244; border: 1px solid #ff003344; }
+  .badge-high { background: #ff330018; color: #ff6633; border: 1px solid #ff330044; }
+  .badge-medium { background: #ffaa0018; color: #ffaa00; border: 1px solid #ffaa0044; }
+  .badge-low { background: #3388ff18; color: #66aaff; border: 1px solid #3388ff44; }
+  .badge-info { background: #88888818; color: #888888; border: 1px solid #88888844; }
+  .badge-ok { background: #00ff8818; color: #00cc66; border: 1px solid #00ff8844; }
+
+  .mono-val {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #888;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .desc-text { font-size: 12px; color: #666; }
+
+  /* ── Summary Stats ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: var(--mono);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #555;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .stat-critical .stat-num { color: #ff2244; }
+  .stat-high .stat-num { color: #ff6633; }
+  .stat-medium .stat-num { color: #ffaa00; }
+  .stat-ok .stat-num { color: #00cc66; }
+
+  /* ── SSL Card ── */
+  .ssl-valid {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .ssl-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .ssl-info-item {
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 10px 14px;
+  }
+
+  .ssl-info-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #555;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .ssl-info-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  /* ── Port map ── */
+  .port-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+  }
+
+  .port-tile {
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .port-tile.open { border-color: #ff333355; background: #ff330808; }
+  .port-tile.open.safe { border-color: #00ff8833; background: #00ff8808; }
+
+  .port-num {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .port-tile.open .port-num { color: var(--accent2); }
+  .port-tile.open.safe .port-num { color: var(--accent); }
+
+  .port-name {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #666;
+    margin-top: 2px;
+  }
+
+  .port-status {
+    font-family: var(--mono);
+    font-size: 9px;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  .port-tile.open .port-status { color: var(--accent2); }
+  .port-tile.open.safe .port-status { color: var(--accent); }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 0;
+    margin-top: 48px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #444;
+    text-align: center;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-up { animation: fadeUp .5s ease forwards; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .4; }
+  }
+
+  .scanning-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+    animation: pulse 1s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  @media (max-width: 640px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .progress-steps { grid-template-columns: repeat(3, 1fr); }
+    .input-row { flex-direction: column; }
+    .ssl-info-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🛡</div>
+      <span class="logo-text">VULN<span>SCAN</span></span>
+    </div>
+    <h1>Analyse de<br><em>vulnérabilités</em> web</h1>
+    <p class="tagline">// scan · headers · ssl · ports · exposed files</p>
+  </header>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer">
+    <span>⚠</span>
+    <span><b>Usage légal uniquement.</b> Ne scanner que des cibles dont vous êtes propriétaire ou avez une autorisation explicite. Tout scan non autorisé est illégal (CFAA, LCEN, etc.).</span>
+  </div>
+
+  <!-- Scan Form -->
+  <div class="scan-form">
+    <label class="form-label">// cible à analyser</label>
+    <div class="input-row">
+      <input type="text" id="target-input" placeholder="exemple.com ou https://exemple.com" autocomplete="off" spellcheck="false">
+      <button class="btn" id="scan-btn" onclick="startScan()">SCANNER →</button>
+    </div>
+    <p class="form-note">// Analyses : en-têtes HTTP · SSL/TLS · ports communs · fichiers sensibles · DNS</p>
+  </div>
+
+  <!-- Progress -->
+  <div id="progress-section">
+    <div class="progress-header">
+      <div>
+        <div class="progress-title"><span class="scanning-dot"></span> SCAN EN COURS</div>
+        <div id="scan-target-label" style="font-family:var(--mono);font-size:11px;color:#555;margin-top:4px;"></div>
+      </div>
+      <div class="progress-pct" id="progress-pct">0%</div>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progress-bar"></div>
+    </div>
+    <div class="progress-steps">
+      <div class="step-pill" id="step-dns">DNS</div>
+      <div class="step-pill" id="step-ssl">SSL</div>
+      <div class="step-pill" id="step-headers">HEADERS</div>
+      <div class="step-pill" id="step-paths">PATHS</div>
+      <div class="step-pill" id="step-ports">PORTS</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results"></div>
+
+  <footer>VULNSCAN — outil éducatif open-source — utilisation légale uniquement</footer>
+</div>
+
+<script>
+const API = 'http://localhost:8000'; // Change to your backend URL
+
+let pollInterval = null;
+
+async function startScan() {
+  const target = document.getElementById('target-input').value.trim();
+  if (!target) return;
+
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('results').innerHTML = '';
+
+  const prog = document.getElementById('progress-section');
+  prog.style.display = 'block';
+  updateProgress(0);
+  document.getElementById('scan-target-label').textContent = target;
+
+  ['dns','ssl','headers','paths','ports'].forEach(s => {
+    const el = document.getElementById('step-' + s);
+    el.className = 'step-pill';
+  });
+
+  try {
+    const res = await fetch(`${API}/api/scan`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({target})
+    });
+
+    if (!res.ok) throw new Error('Serveur indisponible');
+    const {scan_id} = await res.json();
+    pollResults(scan_id);
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+function pollResults(scan_id) {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`${API}/api/scan/${scan_id}`);
+      const data = await res.json();
+
+      updateProgress(data.progress || 0);
+
+      if (data.progress >= 10) markStep('dns', data.progress >= 25 ? 'done' : 'active');
+      if (data.progress >= 25) markStep('ssl', data.progress >= 45 ? 'done' : 'active');
+      if (data.progress >= 45) markStep('headers', data.progress >= 65 ? 'done' : 'active');
+      if (data.progress >= 65) markStep('paths', data.progress >= 80 ? 'done' : 'active');
+      if (data.progress >= 80) markStep('ports', data.progress >= 100 ? 'done' : 'active');
+
+      if (data.status === 'done') {
+        clearInterval(pollInterval);
+        document.getElementById('progress-section').style.display = 'none';
+        document.getElementById('scan-btn').disabled = false;
+        renderResults(data);
+      }
+    } catch(e) {
+      clearInterval(pollInterval);
+      showError('Connexion perdue avec le backend');
+      document.getElementById('scan-btn').disabled = false;
+    }
+  }, 800);
+}
+
+function updateProgress(pct) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+}
+
+function markStep(name, state) {
+  const el = document.getElementById('step-' + name);
+  el.className = 'step-pill ' + state;
+}
+
+function showError(msg) {
+  document.getElementById('progress-section').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').innerHTML = `
+    <div style="background:#ff330010;border:1px solid #ff330044;border-radius:12px;padding:24px;font-family:var(--mono);color:#ff6655;">
+      ❌ Erreur : ${msg}<br>
+      <span style="font-size:11px;color:#555;margin-top:8px;display:block;">Vérifiez que le backend est lancé sur ${API}</span>
+    </div>`;
+}
+
+function severityBadge(sev) {
+  if (!sev || sev === 'ok') return `<span class="badge badge-ok">✓ OK</span>`;
+  const icons = { critical: '🔴', high: '🟠', medium: '🟡', low: '🔵', info: 'ℹ' };
+  return `<span class="badge badge-${sev}">${icons[sev]||''} ${sev}</span>`;
+}
+
+function calcOverallRisk(data) {
+  let score = 0;
+  // SSL
+  if (data.ssl?.issues?.some(i => i.severity === 'critical')) score += 40;
+  else if (!data.ssl?.valid) score += 25;
+
+  // Headers
+  const grade = data.headers?.grade;
+  if (grade === 'F') score += 30;
+  else if (grade === 'C') score += 15;
+  else if (grade === 'B') score += 5;
+
+  // Sensitive paths found
+  const foundPaths = data.paths?.found?.length || 0;
+  score += Math.min(foundPaths * 8, 30);
+
+  // Dangerous open ports
+  const dangerousPorts = [21,23,445,3389,5900,6379,27017];
+  const openDanger = data.ports?.open_ports?.filter(p => dangerousPorts.includes(p.port)).length || 0;
+  score += openDanger * 10;
+
+  if (score >= 60) return 'critical';
+  if (score >= 35) return 'high';
+  if (score >= 15) return 'medium';
+  if (score >= 5) return 'low';
+  return 'ok';
+}
+
+function makeCard(icon, title, badgeHtml, bodyHtml, meta = '') {
+  const id = 'card-' + Math.random().toString(36).slice(2);
+  return `
+    <div class="section-card fade-up">
+      <div class="card-header" onclick="toggleCard('${id}')">
+        <div class="card-title">
+          <span class="card-icon">${icon}</span>
+          ${title}
+          ${badgeHtml}
+        </div>
+        <div class="card-meta">${meta}<span class="chevron" id="chev-${id}">▾</span></div>
+      </div>
+      <div class="card-body" id="${id}">${bodyHtml}</div>
+    </div>`;
+}
+
+function toggleCard(id) {
+  const body = document.getElementById(id);
+  const chev = document.getElementById('chev-' + id);
+  if (body.classList.contains('collapsed')) {
+    body.classList.remove('collapsed');
+    chev.textContent = '▾';
+  } else {
+    body.classList.add('collapsed');
+    chev.textContent = '▸';
+  }
+}
+
+function renderResults(data) {
+  const risk = calcOverallRisk(data);
+  const riskLabels = { critical: 'CRITIQUE', high: 'ÉLEVÉ', medium: 'MOYEN', low: 'FAIBLE', ok: 'BON' };
+
+  // Count issues
+  const critCount = (data.ssl?.issues?.filter(i=>i.severity==='critical').length||0)
+    + (data.paths?.found?.filter(p=>p.severity==='critical').length||0)
+    + (data.ports?.open_ports?.filter(p=>p.severity==='critical').length||0);
+  const highCount = (data.headers?.results?.filter(r=>r.severity==='high').length||0)
+    + (data.paths?.found?.filter(p=>p.severity==='high').length||0)
+    + (data.ports?.open_ports?.filter(p=>p.severity==='high').length||0)
+    + (data.ssl?.issues?.filter(i=>i.severity==='high').length||0);
+  const medCount = (data.headers?.results?.filter(r=>r.severity==='medium').length||0)
+    + (data.paths?.found?.filter(p=>p.severity==='medium').length||0);
+  const openCount = data.ports?.open_ports?.length || 0;
+
+  // ─── Stats Grid ───
+  let html = `
+    <div class="results-header">
+      <div>
+        <div class="results-title">Rapport de sécurité</div>
+        <div class="results-target">${data.target || data.host}</div>
+      </div>
+      <div class="overall-risk">
+        <span style="font-family:var(--mono);font-size:11px;color:#555;">RISQUE GLOBAL</span>
+        <span class="risk-badge risk-${risk}">${riskLabels[risk]}</span>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box stat-critical">
+        <div class="stat-num">${critCount}</div>
+        <div class="stat-label">Critique</div>
+      </div>
+      <div class="stat-box stat-high">
+        <div class="stat-num">${highCount}</div>
+        <div class="stat-label">Élevé</div>
+      </div>
+      <div class="stat-box stat-medium">
+        <div class="stat-num">${medCount}</div>
+        <div class="stat-label">Moyen</div>
+      </div>
+      <div class="stat-box" style="">
+        <div class="stat-num" style="color:var(--accent3);">${openCount}</div>
+        <div class="stat-label">Ports ouverts</div>
+      </div>
+    </div>`;
+
+  // ─── DNS ───
+  if (data.dns?.status === 'ok') {
+    html += makeCard('🌐', 'DNS & Résolution', '', `
+      <div class="ssl-info-grid">
+        <div class="ssl-info-item">
+          <div class="ssl-info-label">Hôte</div>
+          <div class="ssl-info-value">${data.dns.host}</div>
+        </div>
+        <div class="ssl-info-item">
+          <div class="ssl-info-label">IP Principale</div>
+          <div class="ssl-info-value">${data.dns.primary_ip}</div>
+        </div>
+        <div class="ssl-info-item" style="grid-column: 1/-1;">
+          <div class="ssl-info-label">Toutes les IPs</div>
+          <div class="ssl-info-value">${data.dns.all_ips?.join(', ') || '-'}</div>
+        </div>
+      </div>`);
+  }
+
+  // ─── SSL ───
+  const sslOk = data.ssl?.valid;
+  const sslBadge = sslOk ? `<span class="badge badge-ok">✓ VALIDE</span>` : `<span class="badge badge-critical">✗ PROBLÈME</span>`;
+  let sslBody = '';
+  if (data.ssl?.status === 'ok' || data.ssl?.valid !== undefined) {
+    const daysColor = (data.ssl.days_left < 30) ? '#ff6633' : '#00cc66';
+    sslBody += `
+      <div class="ssl-info-grid" style="margin-bottom:16px;">
+        <div class="ssl-info-item">
+          <div class="ssl-info-label">Domaine</div>
+          <div class="ssl-info-value">${data.ssl.subject || '-'}</div>
+        </div>
+        <div class="ssl-info-item">
+          <div class="ssl-info-label">Émetteur</div>
+          <div class="ssl-info-value">${data.ssl.issuer || '-'}</div>
+        </div>
+        <div class="ssl-info-item">
+          <div class="ssl-info-label">Expire dans</div>
+          <div class="ssl-info-value" style="color:${daysColor}">${data.ssl.days_left ?? 'N/A'} jours</div>
+        </div>
+        <div class="ssl-info-item">
+          <div class="ssl-info-label">Expiration</div>
+          <div class="ssl-info-value">${data.ssl.not_after?.split('T')[0] || '-'}</div>
+        </div>
+      </div>`;
+    if (data.ssl.san?.length) {
+      sslBody += `<div class="ssl-info-item" style="background:var(--bg);border-radius:6px;padding:10px 14px;margin-bottom:12px;">
+        <div class="ssl-info-label">SAN</div>
+        <div class="ssl-info-value" style="font-size:12px;">${data.ssl.san.join(' · ')}</div>
+      </div>`;
+    }
+    if (data.ssl.issues?.length) {
+      sslBody += data.ssl.issues.map(i =>
+        `<div style="background:#ff330010;border-radius:6px;padding:10px 14px;border:1px solid #ff330033;font-family:var(--mono);font-size:12px;color:#ff6655;margin-bottom:8px;">
+          ${severityBadge(i.severity)} ${i.message}
+        </div>`
+      ).join('');
+    }
+  } else {
+    sslBody = `<div style="font-family:var(--mono);font-size:12px;color:#ff6655;">Impossible de récupérer le certificat SSL.</div>`;
+    if (data.ssl?.issues?.length) {
+      sslBody += data.ssl.issues.map(i =>
+        `<div style="margin-top:8px;font-family:var(--mono);font-size:12px;color:#ff6655;">${i.message}</div>`
+      ).join('');
+    }
+  }
+  html += makeCard('🔒', 'SSL / TLS', sslBadge, sslBody);
+
+  // ─── HTTP Headers ───
+  const headerGrade = data.headers?.grade || 'N/A';
+  const gradeColor = { A:'#00cc66', B:'#66aaff', C:'#ffaa00', F:'#ff3355', 'N/A':'#666' }[headerGrade] || '#888';
+  const headerBadge = `<span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${gradeColor};">Grade ${headerGrade}</span>`;
+  let headersBody = '';
+  if (data.headers?.results?.length) {
+    headersBody = `<table class="result-table">
+      <thead><tr>
+        <th>En-tête</th>
+        <th>Statut</th>
+        <th>Valeur</th>
+        <th>Description</th>
+      </tr></thead>
+      <tbody>
+        ${data.headers.results.map(h => `
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px;">${h.header}</td>
+            <td>${severityBadge(h.severity)}</td>
+            <td><div class="mono-val">${h.value || (h.present ? '✓' : '—')}</div></td>
+            <td><div class="desc-text">${h.description}</div></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+  html += makeCard('📋', 'En-têtes HTTP', headerBadge, headersBody, `${data.headers?.score||0}/${data.headers?.max||0} présents `);
+
+  // ─── Sensitive Paths ───
+  const foundPaths = data.paths?.found?.length || 0;
+  const pathsBadge = foundPaths > 0
+    ? `<span class="badge badge-high">${foundPaths} trouvé${foundPaths>1?'s':''}</span>`
+    : `<span class="badge badge-ok">Aucun</span>`;
+  let pathsBody = '';
+  const pathsToShow = (data.paths?.results || []).filter(p => p.found);
+  if (pathsToShow.length === 0) {
+    pathsBody = `<div style="font-family:var(--mono);font-size:12px;color:#00cc66;">✓ Aucun fichier/dossier sensible exposé détecté.</div>`;
+  } else {
+    pathsBody = `<table class="result-table">
+      <thead><tr><th>Chemin</th><th>Sévérité</th><th>HTTP</th><th>Risque</th></tr></thead>
+      <tbody>
+        ${pathsToShow.map(p => `
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px;">${p.path}</td>
+            <td>${severityBadge(p.severity)}</td>
+            <td><span style="font-family:var(--mono);font-size:11px;">${p.status}</span></td>
+            <td><div class="desc-text">${p.description}</div></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+  html += makeCard('📁', 'Fichiers sensibles exposés', pathsBadge, pathsBody);
+
+  // ─── Ports ───
+  const openPorts = data.ports?.open_ports || [];
+  const portsBadge = `<span class="badge badge-${openPorts.length > 3 ? 'high' : openPorts.length > 0 ? 'medium' : 'ok'}">${openPorts.length} ouvert${openPorts.length!==1?'s':''}</span>`;
+  const safePorts = [80, 443, 8080, 8443];
+  let portsBody = `<div class="port-grid">
+    ${(data.ports?.results || []).filter(p => p.open).map(p => {
+      const isSafe = safePorts.includes(p.port);
+      return `<div class="port-tile open ${isSafe ? 'safe' : ''}">
+        <div class="port-num">${p.port}</div>
+        <div class="port-name">${p.service}</div>
+        <div class="port-status">OUVERT</div>
+      </div>`;
+    }).join('')}
+    ${openPorts.length === 0 ? `<div style="font-family:var(--mono);font-size:12px;color:#00cc66;padding:8px;">✓ Aucun port à risque détecté.</div>` : ''}
+  </div>`;
+  html += makeCard('🔌', 'Scan de ports', portsBadge, portsBody, `${data.ports?.results?.filter(p=>!p.open).length||0} fermés `);
+
+  const results = document.getElementById('results');
+  results.style.display = 'block';
+  results.innerHTML = html;
+}
+
+document.getElementById('target-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
+});
+</script>
+</body>
+</html>
